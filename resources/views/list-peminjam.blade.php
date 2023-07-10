@@ -104,6 +104,7 @@
                                             <option value="Pending">Pending</option>
                                             <option value="Approve">Approve</option>
                                             <option value="Reject">Reject</option>
+                                            <option value="Done">Done</option>
                                         </select>
                                     </div>
                                     <input type="hidden" name="action" id="action" value="Add" />

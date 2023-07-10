@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Books;
 use App\Models\Peminjam;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
 class PeminjamController extends Controller
@@ -20,8 +21,8 @@ class PeminjamController extends Controller
             return DataTables::of($data)->addIndexColumn()
                 ->addColumn('action', function($data){
                     if(Auth::user()->role_id == 1){
-                        $button = '<button type="button" name="edit" id="'.$data->id.'" class="edit btn btn-primary btn-sm"> <i class="fa fa-pencil-square"></i>Edit</button>';
-                        $button .= '<button type="button" name="edit" id="'.$data->id.'" class="delete btn btn-danger btn-sm"> <i class="fa fa-backspace-reverse-fill"></i> Delete</button>';
+                        // $button = '<button type="button" name="edit" id="'.$data->id.'" class="edit btn btn-primary btn-sm"> <i class="fa fa-pencil-square"></i>Edit</button>';
+                        $button = '<button type="button" name="edit" id="'.$data->id.'" class="delete btn btn-danger btn-sm"> <i class="fa fa-backspace-reverse-fill"></i> Delete</button>';
                         $button .= '<button type="button" name="edit" id="'.$data->id.'" class="approve btn btn-success btn-sm"> <i class="fa fa-backspace-reverse-fill"></i> Approve</button>';
                         return $button;
                     }
@@ -100,9 +101,34 @@ class PeminjamController extends Controller
             'status'=>  $request->status,
         );
 
-        Peminjam::whereId($request->hidden_id)->update($form_data);
+        try {
+            DB::beginTransaction();
+            //code...
+            $book = Books::findOrFail($request->buku_id);
 
-        return response()->json(['status' => 200 ,'success' => 'Data is successfully updated']);
+            if($book->stok_buku !== 0){
+                if($request->status == 'Approve') {
+                    $book->stok_buku -= 1;
+                    $book->save();
+                }elseif($request->status == 'Done'){
+                    $book->stok_buku += 1;
+                    $book->save();
+                }
+            }else{
+                DB::rollback();
+                return response()->json(['status' => 400 ,'failed' => 'Data Book invalid']);
+            }
+
+            Peminjam::whereId($request->hidden_id)->update($form_data);
+
+            DB::commit();
+
+            return response()->json(['status' => 200 ,'success' => 'Data is successfully updated']);
+        } catch (\Throwable $th) {
+            DB::rollback();
+        }
+
+
     }
 
     public function destroy($id)
